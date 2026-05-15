@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI量化交易Agent - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+        <div class="navbar-brand">
+            <span class="brand-icon">&#9670;</span>
+            <span class="brand-text">AI量化Agent</span>
+        </div>
+        <div class="navbar-center">
+            <span class="mode-badge">模拟交易</span>
+            <span class="status-dot online"></span>
+            <span class="status-text">系统运行中</span>
+        </div>
+        <div class="navbar-right">
+            <span class="current-time" id="currentTime">--</span>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <a href="#market-overview" class="nav-item active" data-section="market-overview">
+                    <span class="nav-icon">&#9673;</span>
+                    <span class="nav-text">市场概览</span>
+                </a>
+                <a href="#backtest-panel" class="nav-item" data-section="backtest-panel">
+                    <span class="nav-icon">&#9881;</span>
+                    <span class="nav-text">回测系统</span>
+                </a>
+                <a href="#news-panel" class="nav-item" data-section="news-panel">
+                    <span class="nav-icon">&#9993;</span>
+                    <span class="nav-text">新闻监控</span>
+                </a>
+                <a href="#score-panel" class="nav-item" data-section="score-panel">
+                    <span class="nav-icon">&#9733;</span>
+                    <span class="nav-text">评分决策</span>
+                </a>
+                <a href="#trade-panel" class="nav-item" data-section="trade-panel">
+                    <span class="nav-icon">&#9830;</span>
+                    <span class="nav-text">模拟交易</span>
+                </a>
+                <a href="#report-panel" class="nav-item" data-section="report-panel">
+                    <span class="nav-icon">&#9998;</span>
+                    <span class="nav-text">报告中心</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="content">
+            <!-- ==================== 市场概览 ==================== -->
+            <section id="market-overview" class="panel-section active">
+                <h2 class="section-title">市场概览</h2>
+
+                <!-- 价格卡片 -->
+                <div class="card-row">
+                    <div class="stat-card">
+                        <div class="stat-label">BTC/USDT</div>
+                        <div class="stat-value" id="btcPrice">--</div>
+                        <div class="stat-change" id="btcChange">--</div>
+                        <div class="stat-sub">24h成交量: <span id="btcVolume">--</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">ETH/USDT</div>
+                        <div class="stat-value" id="ethPrice">--</div>
+                        <div class="stat-change" id="ethChange">--</div>
+                        <div class="stat-sub">24h成交量: <span id="ethVolume">--</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">系统评分</div>
+                        <div class="stat-value" id="systemScore">--</div>
+                        <div class="stat-sub">综合评分</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">当前决策</div>
+                        <div class="stat-value decision-value" id="currentDecision">--</div>
+                        <div class="stat-sub" id="decisionConf">置信度: --</div>
+                    </div>
+                </div>
+
+                <!-- K线图表 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>K线图表</h3>
+                        <div class="card-actions">
+                            <select id="klineSymbol" class="form-select">
+                                <option value="btcusdt">BTC/USDT</option>
+                                <option value="ethusdt">ETH/USDT</option>
+                            </select>
+                            <select id="klinePeriod" class="form-select">
+                                <option value="daily">日线</option>
+                                <option value="4h">4小时</option>
+                                <option value="1h">1小时</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm" onclick="App.refreshMarket()">刷新</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="klineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 技术指标 -->
+                <div class="card-row">
+                    <div class="card">
+                        <div class="card-header"><h3>技术指标</h3></div>
+                        <div class="card-body">
+                            <div class="indicator-grid" id="indicatorGrid">
+                                <div class="indicator-item">
+                                    <span class="indicator-label">MA7</span>
+                                    <span class="indicator-value" id="ma7">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">MA25</span>
+                                    <span class="indicator-value" id="ma25">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">MA99</span>
+                                    <span class="indicator-value" id="ma99">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">RSI(14)</span>
+                                    <span class="indicator-value" id="rsi14">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">MACD</span>
+                                    <span class="indicator-value" id="macd">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">BOLL上轨</span>
+                                    <span class="indicator-value" id="bollUpper">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">BOLL中轨</span>
+                                    <span class="indicator-value" id="bollMiddle">--</span>
+                                </div>
+                                <div class="indicator-item">
+                                    <span class="indicator-label">BOLL下轨</span>
+                                    <span class="indicator-value" id="bollLower">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 回测系统 ==================== -->
+            <section id="backtest-panel" class="panel-section">
+                <h2 class="section-title">回测系统</h2>
+
+                <div class="card">
+                    <div class="card-header"><h3>策略回测</h3></div>
+                    <div class="card-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">交易策略</label>
+                                <select id="btStrategy" class="form-select">
+                                    <option value="ma">均线策略 (MA)</option>
+                                    <option value="breakout">突破策略 (Breakout)</option>
+                                    <option value="rsi">RSI策略 (RSI)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">交易对</label>
+                                <select id="btSymbol" class="form-select">
+                                    <option value="btcusdt">BTC/USDT</option>
+                                    <option value="ethusdt">ETH/USDT</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">K线周期</label>
+                                <select id="btPeriod" class="form-select">
+                                    <option value="daily">日线</option>
+                                    <option value="4h">4小时</option>
+                                    <option value="1h">1小时</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">初始资金 (USDT)</label>
+                                <input type="number" id="btCapital" class="form-input" value="100000">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">开始日期</label>
+                                <input type="date" id="btStartDate" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">结束日期</label>
+                                <input type="date" id="btEndDate" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="App.runBacktest()">
+                                <span class="btn-icon">&#9654;</span> 运行回测
+                            </button>
+                            <button class="btn btn-secondary" onclick="App.getBacktestResult()">
+                                查看最近结果
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 回测结果 -->
+                <div id="backtestResultArea" style="display:none;">
+                    <div class="card-row">
+                        <div class="stat-card">
+                            <div class="stat-label">总收益率</div>
+                            <div class="stat-value" id="btTotalReturn">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">年化收益率</div>
+                            <div class="stat-value" id="btAnnualReturn">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">最大回撤</div>
+                            <div class="stat-value" id="btMaxDrawdown">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">夏普比率</div>
+                            <div class="stat-value" id="btSharpe">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">胜率</div>
+                            <div class="stat-value" id="btWinRate">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">总交易次数</div>
+                            <div class="stat-value" id="btTotalTrades">--</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header"><h3>权益曲线</h3></div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="equityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header"><h3>交易记录</h3></div>
+                        <div class="card-body">
+                            <div class="table-wrapper">
+                                <table class="data-table" id="tradeTable">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>方向</th>
+                                            <th>价格</th>
+                                            <th>数量</th>
+                                            <th>盈亏</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tradeTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 新闻监控 ==================== -->
+            <section id="news-panel" class="panel-section">
+                <h2 class="section-title">新闻监控</h2>
+
+                <div class="card">
+                    <div class="card-header"><h3>提交新闻事件</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">新闻标题</label>
+                            <input type="text" id="newsTitle" class="form-input" placeholder="输入新闻标题...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">新闻内容</label>
+                            <textarea id="newsContent" class="form-textarea" rows="4" placeholder="输入新闻内容..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">新闻来源</label>
+                            <input type="text" id="newsSource" class="form-input" placeholder="如: 路透社、彭博社..." value="手动输入">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="App.submitNews()">
+                                <span class="btn-icon">&#9993;</span> 提交新闻
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>事件列表</h3></div>
+                    <div class="card-body">
+                        <div id="newsEventList" class="event-list">
+                            <div class="empty-state">暂无新闻事件，请提交新闻</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 评分决策 ==================== -->
+            <section id="score-panel" class="panel-section">
+                <h2 class="section-title">评分决策</h2>
+
+                <div class="card-row">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>综合评分</h3>
+                            <button class="btn btn-primary btn-sm" onclick="App.refreshScore()">刷新评分</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="max-width:400px; margin:0 auto;">
+                                <canvas id="scoreRadarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>评分详情</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="scoreDetails" class="score-details">
+                                <div class="score-item">
+                                    <span class="score-label">趋势评分</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="scoreTrend" style="width:0%"></div>
+                                    </div>
+                                    <span class="score-num" id="scoreTrendNum">--</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">动量评分</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="scoreMomentum" style="width:0%"></div>
+                                    </div>
+                                    <span class="score-num" id="scoreMomentumNum">--</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">波动率评分</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="scoreVolatility" style="width:0%"></div>
+                                    </div>
+                                    <span class="score-num" id="scoreVolatilityNum">--</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">成交量评分</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="scoreVolume" style="width:0%"></div>
+                                    </div>
+                                    <span class="score-num" id="scoreVolumeNum">--</span>
+                                </div>
+                                <div class="score-item">
+                                    <span class="score-label">情绪评分</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="scoreSentiment" style="width:0%"></div>
+                                    </div>
+                                    <span class="score-num" id="scoreSentimentNum">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 决策面板 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>当前决策建议</h3>
+                        <button class="btn btn-primary btn-sm" onclick="App.refreshDecision()">刷新决策</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="decisionArea" class="decision-area">
+                            <div class="decision-main">
+                                <div class="decision-label">决策方向</div>
+                                <div class="decision-value-large" id="decisionDirection">等待分析...</div>
+                            </div>
+                            <div class="decision-details">
+                                <div class="decision-detail-item">
+                                    <span class="detail-label">置信度</span>
+                                    <span class="detail-value" id="decisionConfDetail">--</span>
+                                </div>
+                                <div class="decision-detail-item">
+                                    <span class="detail-label">建议仓位</span>
+                                    <span class="detail-value" id="decisionPosition">--</span>
+                                </div>
+                                <div class="decision-detail-item">
+                                    <span class="detail-label">止损价格</span>
+                                    <span class="detail-value" id="decisionStopLoss">--</span>
+                                </div>
+                                <div class="decision-detail-item">
+                                    <span class="detail-label">止盈价格</span>
+                                    <span class="detail-value" id="decisionTakeProfit">--</span>
+                                </div>
+                            </div>
+                            <div class="decision-conditions">
+                                <div class="condition-block">
+                                    <div class="condition-title">入场条件</div>
+                                    <ul class="condition-list" id="entryConditions">
+                                        <li>等待分析...</li>
+                                    </ul>
+                                </div>
+                                <div class="condition-block">
+                                    <div class="condition-title">失效条件</div>
+                                    <ul class="condition-list" id="exitConditions">
+                                        <li>等待分析...</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 模拟交易 ==================== -->
+            <section id="trade-panel" class="panel-section">
+                <h2 class="section-title">模拟交易</h2>
+
+                <div class="card-row">
+                    <div class="stat-card">
+                        <div class="stat-label">总资产</div>
+                        <div class="stat-value" id="totalAsset">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">可用余额</div>
+                        <div class="stat-value" id="availableBalance">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">持仓市值</div>
+                        <div class="stat-value" id="positionValue">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">总盈亏</div>
+                        <div class="stat-value" id="totalPnl">--</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>权益曲线</h3>
+                        <button class="btn btn-primary btn-sm" onclick="App.refreshPortfolio()">刷新</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="portfolioChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>当前持仓</h3></div>
+                    <div class="card-body">
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>交易对</th>
+                                        <th>方向</th>
+                                        <th>数量</th>
+                                        <th>开仓价</th>
+                                        <th>当前价</th>
+                                        <th>盈亏</th>
+                                        <th>盈亏比</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="positionTableBody">
+                                    <tr><td colspan="7" class="empty-state">暂无持仓</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>交易历史</h3></div>
+                    <div class="card-body">
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>交易对</th>
+                                        <th>方向</th>
+                                        <th>价格</th>
+                                        <th>数量</th>
+                                        <th>盈亏</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr><td colspan="7" class="empty-state">暂无交易记录</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 报告中心 ==================== -->
+            <section id="report-panel" class="panel-section">
+                <h2 class="section-title">报告中心</h2>
+
+                <div class="card">
+                    <div class="card-header"><h3>生成报告</h3></div>
+                    <div class="card-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">报告类型</label>
+                                <select id="reportType" class="form-select">
+                                    <option value="daily">日报</option>
+                                    <option value="weekly">周报</option>
+                                    <option value="monthly">月报</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">报告日期</label>
+                                <input type="date" id="reportDate" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="App.generateReport()">
+                                <span class="btn-icon">&#9998;</span> 生成报告
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>报告内容</h3></div>
+                    <div class="card-body">
+                        <div id="reportContent" class="report-content">
+                            <div class="empty-state">请选择报告类型并点击生成报告</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">加载中...</div>
+    </div>
+
+    <!-- 通知提示 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

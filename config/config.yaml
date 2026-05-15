@@ -1,0 +1,62 @@
+# AI Trading Agent 配置文件
+# 默认安全边界：只读分析和模拟交易
+
+# 系统模式: paper(模拟) / testnet / live(实盘-需严格验证)
+mode: "paper"
+
+# 市场配置
+market:
+  primary: "crypto"
+  symbols:
+    - "BTC/USDT"
+    - "ETH/USDT"
+  timeframe: "1h"
+
+# 数据源配置
+data:
+  source: "akshare"
+  storage:
+    type: "sqlite"
+    path: "data/storage/market_data.db"
+
+# 回测配置
+backtest:
+  initial_capital: 10000
+  fee_rate: 0.001        # 0.1% 手续费
+  slippage: 0.0005       # 0.05% 滑点
+  min_trades: 30         # 最少交易笔数
+
+# 评分权重 (加密市场)
+scoring:
+  weights:
+    event: 0.25
+    sentiment: 0.20
+    kline_structure: 0.20
+    technical: 0.15
+    funding_orderbook: 0.20
+    risk_penalty_max: 0.30
+  min_score_for_trade: 60
+
+# 风控配置
+risk:
+  max_position_size: 0.20
+  max_daily_loss: 0.05
+  max_drawdown: 0.15
+  min_liquidity_score: 60
+
+# OpenAI 配置
+openai:
+  model: "gpt-4o-mini"
+  temperature: 0.3
+  max_tokens: 2000
+
+# Web 配置
+web:
+  host: "0.0.0.0"
+  port: 5000
+  debug: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "logs/agent.log"

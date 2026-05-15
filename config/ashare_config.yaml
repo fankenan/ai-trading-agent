@@ -1,0 +1,71 @@
+# AI量化交易Agent - A股配置
+# 政策理解优先，适配A股特殊交易规则
+
+# 系统模式
+mode: "paper"  # paper(模拟) / live(实盘-需严格验证)
+
+# 市场配置
+market:
+  primary: "a_share"
+  symbols:
+    - "000001"  # 平安银行
+    - "000002"  # 万科A
+  timeframe: "daily"
+
+# 数据源配置
+data:
+  source: "akshare"
+  storage:
+    type: "sqlite"
+    path: "data/storage/ashare_data.db"
+
+# A股回测配置
+backtest:
+  initial_capital: 100000  # 初始资金10万元
+  commission_rate: 0.00025  # 佣金万2.5
+  stamp_tax_rate: 0.001   # 印花税千1（卖出时）
+  min_commission: 5       # 最低佣金5元
+  min_trade_unit: 100     # 最小交易单位100股
+  is_st: false            # 是否为ST股票
+  is_cyb: false           # 是否为创业板
+
+# A股评分权重（政策理解优先）
+scoring:
+  weights:
+    event_policy: 0.35    # 政策/事件评分（最重要）
+    sentiment: 0.10       # 市场情绪
+    kline_structure: 0.15 # K线结构
+    technical: 0.10       # 技术指标
+    funding: 0.20         # 资金流向（北向资金/主力资金）
+    backtest_validity: 0.10  # 回测有效性
+  min_score_for_trade: 60
+
+# A股风控配置
+risk:
+  max_position_size: 0.20    # 最大单只持仓20%
+  max_daily_loss: 0.05       # 单日最大亏损5%
+  max_drawdown: 0.15         # 最大回撤15%
+  max_single_loss: 0.07      # 单笔最大亏损7%
+  
+  # A股特有风控
+  enable_st_filter: true     # 启用ST过滤
+  enable_suspend_filter: true # 启用停牌过滤
+  enable_limit_up_filter: true # 启用涨停买入过滤
+  enable_policy_circuit_breaker: true # 启用政策熔断
+
+# OpenAI 配置
+openai:
+  model: "deepseek-chat"
+  temperature: 0.3
+  max_tokens: 2000
+
+# Web 配置
+web:
+  host: "0.0.0.0"
+  port: 5001
+  debug: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "logs/ashare_agent.log"
