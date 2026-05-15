@@ -34,8 +34,7 @@ services:
     container_name: ai-trading-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "82:82"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro

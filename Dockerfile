@@ -21,17 +21,15 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制Python依赖
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制后端代码
-COPY data/ ./data/
-COPY agent/ ./agent/
-COPY run_multi_source.py .
-COPY .env .
+# 复制后端代码（排除已在.dockerignore中的文件）
+COPY . .
 
 # 复制前端构建产物
 COPY --from=frontend-builder /app/web-react/dist ./web-react/dist
