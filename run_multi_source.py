@@ -42,7 +42,7 @@ class DataSourceManager:
         self._akshare = None
         self._tushare = None
         self._tushare_token = tushare_token
-        self._current_source = 'akshare'  # 默认使用AKShare
+        self._current_source = 'tushare'  # 默认使用Tushare（更稳定）
         logger.info("数据源管理器初始化完成，默认使用AKShare")
     
     @property
