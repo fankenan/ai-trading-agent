@@ -81,32 +81,33 @@ class AKShareFetcher:
             return pd.DataFrame()
     
     def get_realtime_quote(self, ts_code: str) -> Dict[str, Any]:
-        """获取实时行情"""
+        """获取实时行情（使用单股票日线数据作为行情快照）"""
         symbol = self._convert_code(ts_code)
-        
+
         try:
-            # 获取实时行情
-            df = ak.stock_zh_a_spot_em()
-            
-            # 查找对应股票
-            row = df[df['代码'] == symbol]
-            if row.empty:
-                return {"error": "未找到股票"}
-            
-            row = row.iloc[0]
-            
+            # Use individual stock daily data (lighter than full market snapshot)
+            today = datetime.now().strftime("%Y%m%d")
+            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
+            df = ak.stock_zh_a_hist(symbol=symbol, period="daily",
+                                    start_date=week_ago, end_date=today, adjust="qfq")
+
+            if df is None or df.empty:
+                return {"error": f"未找到股票 {symbol} 的数据"}
+
+            row = df.iloc[-1]
+
             return {
                 "symbol": symbol,
-                "name": str(row.get('名称', '')),
-                "price": float(row.get('最新价', 0)),
+                "name": str(row.get('股票代码', '')),
+                "price": float(row.get('收盘', 0)),
                 "change_pct": float(row.get('涨跌幅', 0)),
                 "change": float(row.get('涨跌额', 0)),
                 "volume": float(row.get('成交量', 0)),
                 "amount": float(row.get('成交额', 0)),
-                "open": float(row.get('今开', 0)),
+                "open": float(row.get('开盘', 0)),
                 "high": float(row.get('最高', 0)),
                 "low": float(row.get('最低', 0)),
-                "pre_close": float(row.get('昨收', 0)),
+                "pre_close": float(row.get('昨收', 0)) if '昨收' in df.columns else 0,
                 "is_limit_up": float(row.get('涨跌幅', 0)) >= 9.9,
                 "is_limit_down": float(row.get('涨跌幅', 0)) <= -9.9,
                 "timestamp": datetime.now().isoformat()
