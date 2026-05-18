@@ -40,7 +40,19 @@ const Backtest: React.FC = () => {
     try {
       const response = await runBacktest(symbol, strategy, days)
       if (response.data.success) {
-        setResult(response.data.data)
+        const data = response.data.data
+        const report = data.report || data
+        // Adapt API response to frontend expected format
+        setResult({
+          total_return: report.total_return || 0,
+          annual_return: report.annual_return || 0,
+          max_drawdown: report.max_drawdown || 0,
+          win_rate: report.win_rate || 0,
+          profit_loss_ratio: report.profit_factor || report.profit_loss_ratio || 0,
+          trade_count: report.total_trades || report.trade_count || 0,
+          sharpe_ratio: report.sharpe_ratio || 0,
+          trades: data.trades || [],
+        })
       } else {
         setError(response.data.message || '回测失败')
       }
