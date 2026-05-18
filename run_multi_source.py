@@ -170,13 +170,14 @@ def api_datasource():
         # 切换数据源
         params = request.get_json(silent=True) or {}
         source = params.get('source', '').lower()
-        
+
         if source not in ['akshare', 'tushare']:
             return fail('无效的数据源，支持: akshare, tushare')
-        
-        if source == 'tushare' and not tushare_token:
-            return fail('Tushare未配置Token，请在.env中设置TUSHARE_TOKEN')
-        
+
+        if source == 'tushare':
+            if not tushare_token or 'your_tushare_token' in tushare_token:
+                return fail('Tushare Token未配置或无效，请在.env中设置正确的TUSHARE_TOKEN')
+
         try:
             new_source = ds_manager.switch_source(source)
             return ok({
@@ -185,7 +186,7 @@ def api_datasource():
             })
         except Exception as e:
             return fail(str(e))
-    
+
     # GET - 获取当前数据源状态
     return ok(ds_manager.get_status())
 
