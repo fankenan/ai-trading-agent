@@ -90,7 +90,7 @@ class DataSourceManager:
 tushare_token = os.environ.get('TUSHARE_TOKEN', '')
 ds_manager = DataSourceManager(tushare_token=tushare_token)
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, request, session, send_from_directory, send_file
 from flask_cors import CORS
 from datetime import datetime, timedelta
 
@@ -130,14 +130,37 @@ def to_ts_code(symbol: str) -> str:
         return f"{symbol}.SZ"
 
 
+# React dist directory
+REACT_DIST = os.path.join(os.path.dirname(__file__), 'web-react', 'dist')
+
+
 @app.route('/')
 def index():
     """主页"""
-    index_path = os.path.join(os.path.dirname(__file__), 'web-react', 'dist', 'index.html')
+    index_path = os.path.join(REACT_DIST, 'index.html')
     if os.path.exists(index_path):
-        from flask import send_file
         return send_file(index_path)
     return jsonify({"message": "AI量化Agent API服务运行中"})
+
+
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    """Serve React static assets"""
+    assets_dir = os.path.join(REACT_DIST, 'assets')
+    return send_from_directory(assets_dir, filename)
+
+
+@app.route('/<path:filename>')
+def serve_frontend(filename):
+    """Serve frontend files and SPA routing"""
+    filepath = os.path.join(REACT_DIST, filename)
+    if os.path.isfile(filepath):
+        return send_from_directory(REACT_DIST, filename)
+    # SPA fallback: return index.html for client-side routing
+    index_path = os.path.join(REACT_DIST, 'index.html')
+    if os.path.exists(index_path):
+        return send_file(index_path)
+    return jsonify({"error": "Not found"}), 404
 
 
 @app.route('/api/datasource', methods=['GET', 'POST'])
