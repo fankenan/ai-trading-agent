@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react'
-import { Layout, Menu, theme, Tag, Button, Tooltip, message } from 'antd'
+import { Layout, Menu, theme, Tag, Select, message } from 'antd'
 import {
   DashboardOutlined,
   LineChartOutlined,
@@ -7,8 +7,7 @@ import {
   StarOutlined,
   WalletOutlined,
   FileDoneOutlined,
-  DatabaseOutlined,
-  SwapOutlined
+  DatabaseOutlined
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import MarketOverview from './pages/MarketOverview'
@@ -23,14 +22,39 @@ const { Header, Sider, Content } = Layout
 
 type MenuItem = Required<MenuProps>['items'][number]
 
+// 数据源信息
+interface SourceInfo {
+  key: string
+  name: string
+  free: boolean
+}
+
+export const ALL_SOURCES: Record<string, SourceInfo> = {
+  tushare:  { key: 'tushare',  name: 'Tushare Pro', free: true },
+  akshare:  { key: 'akshare',  name: 'AKShare',     free: true },
+  baostock: { key: 'baostock', name: 'BaoStock',    free: true },
+  em:       { key: 'em',       name: '东方财富 EM',  free: true },
+  jqdata:   { key: 'jqdata',   name: 'JQData 聚宽',  free: true },
+}
+
+export const SOURCE_COLORS: Record<string, string> = {
+  tushare: 'blue',
+  akshare: 'green',
+  baostock: 'orange',
+  em: 'red',
+  jqdata: 'purple',
+}
+
 // 数据源上下文
 interface DataSourceContextType {
-  currentSource: 'akshare' | 'tushare'
-  setCurrentSource: (source: 'akshare' | 'tushare') => void
+  currentSource: string
+  availableSources: string[]
+  setCurrentSource: (source: string) => void
 }
 
 export const DataSourceContext = createContext<DataSourceContextType>({
-  currentSource: 'akshare',
+  currentSource: 'tushare',
+  availableSources: [],
   setCurrentSource: () => {}
 })
 
@@ -47,7 +71,8 @@ const items: MenuItem[] = [
 
 const App: React.FC = () => {
   const [selectedKey, setSelectedKey] = useState('market')
-  const [currentSource, setCurrentSource] = useState<'akshare' | 'tushare'>('akshare')
+  const [currentSource, setCurrentSource] = useState('tushare')
+  const [availableSources, setAvailableSources] = useState<string[]>([])
   const [switching, setSwitching] = useState(false)
   const {
     token: { colorBgContainer, borderRadiusLG },
@@ -61,22 +86,23 @@ const App: React.FC = () => {
   const fetchDataSource = async () => {
     try {
       const res = await getDataSource()
-      if (res.data.success && res.data.data?.current) {
+      if (res.data.success && res.data.data) {
         setCurrentSource(res.data.data.current)
+        const avail = res.data.data.available || []
+        setAvailableSources(avail.map((a: any) => a.key || a))
       }
     } catch (e) {
       console.error('获取数据源状态失败', e)
     }
   }
 
-  const handleSwitchSource = async () => {
-    const newSource = currentSource === 'akshare' ? 'tushare' : 'akshare'
+  const handleSwitchSource = async (newSource: string) => {
     setSwitching(true)
     try {
       const res = await switchDataSource(newSource)
       if (res.data.success) {
         setCurrentSource(newSource)
-        message.success(`已切换到 ${newSource.toUpperCase()} 数据源`)
+        message.success(res.data.message || `已切换到 ${newSource}`)
       } else {
         message.error(res.data.message || '切换失败')
       }
@@ -106,8 +132,20 @@ const App: React.FC = () => {
     }
   }
 
+  const sourceInfo = ALL_SOURCES[currentSource] || { name: currentSource, free: false }
+  const sourceColor = SOURCE_COLORS[currentSource] || 'default'
+
+  // Build select options for available sources
+  const sourceOptions = availableSources.map(key => {
+    const info = ALL_SOURCES[key]
+    return {
+      value: key,
+      label: info ? `${info.name}${info.free ? ' (免费)' : ''}` : key,
+    }
+  })
+
   return (
-    <DataSourceContext.Provider value={{ currentSource, setCurrentSource }}>
+    <DataSourceContext.Provider value={{ currentSource, availableSources, setCurrentSource }}>
       <Layout style={{ minHeight: '100vh' }}>
         <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#001529' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -118,25 +156,20 @@ const App: React.FC = () => {
               A股市场 · 模拟交易 · 系统运行中
             </div>
           </div>
-          
-          {/* 数据源切换按钮 */}
+
+          {/* 数据源选择器 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <DatabaseOutlined style={{ color: '#fff' }} />
-            <Tag color={currentSource === 'akshare' ? 'green' : 'blue'}>
-              {currentSource === 'akshare' ? 'AKShare' : 'Tushare'}
-            </Tag>
-            <Tooltip title={`切换到 ${currentSource === 'akshare' ? 'Tushare' : 'AKShare'} 数据源`}>
-              <Button 
-                type="primary" 
-                size="small"
-                icon={<SwapOutlined />}
-                loading={switching}
-                onClick={handleSwitchSource}
-                style={{ background: currentSource === 'akshare' ? '#1890ff' : '#52c41a', borderColor: 'transparent' }}
-              >
-                切换
-              </Button>
-            </Tooltip>
+            <Tag color={sourceColor}>{sourceInfo.name}</Tag>
+            <Select
+              size="small"
+              value={currentSource}
+              onChange={handleSwitchSource}
+              loading={switching}
+              style={{ minWidth: 130 }}
+              options={sourceOptions}
+              placeholder="选择数据源"
+            />
           </div>
         </Header>
         <Layout>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { Card, Row, Col, Statistic, Select, Button, Table, Alert, Tag, Divider, Spin } from 'antd'
 import { ReloadOutlined, RiseOutlined, FallOutlined, DatabaseOutlined } from '@ant-design/icons'
+import { DataSourceContext, ALL_SOURCES, SOURCE_COLORS } from '../App'
 
 const STOCK_LIST = [
   { value: '000001', label: '000001 平安银行' },
@@ -11,11 +12,15 @@ const STOCK_LIST = [
 ]
 
 const MarketOverview: React.FC = () => {
+  const { currentSource } = useContext(DataSourceContext)
   const [symbol, setSymbol] = useState('000001')
   const [loading, setLoading] = useState(false)
   const [quote, setQuote] = useState<any>(null)
   const [status, setStatus] = useState<any>(null)
   const [error, setError] = useState('')
+
+  const sourceName = ALL_SOURCES[currentSource]?.name || currentSource
+  const sourceColor = SOURCE_COLORS[currentSource] || 'default'
 
   const fetchData = async () => {
     setLoading(true)
@@ -109,8 +114,8 @@ const MarketOverview: React.FC = () => {
           </Button>
         </Col>
         <Col span={8}>
-          <Tag color="blue" icon={<DatabaseOutlined />}>
-            Tushare数据源
+          <Tag color={sourceColor} icon={<DatabaseOutlined />}>
+            {sourceName}
           </Tag>
         </Col>
       </Row>

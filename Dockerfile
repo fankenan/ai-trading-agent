@@ -6,7 +6,7 @@ FROM node:18-alpine AS frontend-builder
 
 WORKDIR /app/web-react
 COPY web-react/package*.json ./
-RUN npm ci --only=production
+RUN npm install --legacy-peer-deps
 
 COPY web-react/ ./
 RUN npm run build
@@ -26,7 +26,8 @@ RUN apt-get update && apt-get install -y \
 
 # 复制Python依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 复制后端代码（排除已在.dockerignore中的文件）
 COPY . .

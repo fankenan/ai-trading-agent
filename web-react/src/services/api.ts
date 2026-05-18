@@ -13,7 +13,7 @@ export const getStatus = () => api.get('/status')
 
 // 数据源管理
 export const getDataSource = () => api.get('/datasource')
-export const switchDataSource = (source: 'akshare' | 'tushare') => 
+export const switchDataSource = (source: string) =>
   api.post('/datasource', { source })
 
 // 市场数据

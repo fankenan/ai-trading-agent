@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 A股量化Agent - 多数据源版本
-支持AKShare和Tushare数据源切换，默认使用AKShare
+支持 AKShare / Tushare / BaoStock / EastMoney / JQData 数据源切换
 """
 
 import os
@@ -23,72 +23,134 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 导入数据获取器
+# ============================================================
+# 数据源可用性检测
+# ============================================================
+AVAILABLE_SOURCES = {}
+
+# AKShare (always available)
+from data.fetchers.akshare_fetcher import AKShareFetcher
+AVAILABLE_SOURCES['akshare'] = {'name': 'AKShare', 'need_token': False, 'free': True}
+
+# Tushare
 try:
     from data.fetchers.tushare_fetcher import TushareFetcher
-    TUSHARE_AVAILABLE = True
+    AVAILABLE_SOURCES['tushare'] = {'name': 'Tushare Pro', 'need_token': True, 'free': True}
 except ImportError:
-    TUSHARE_AVAILABLE = False
     TushareFetcher = None
-    logger.warning("Tushare not installed, only AKShare will be available")
 
-from data.fetchers.akshare_fetcher import AKShareFetcher
+# BaoStock
+try:
+    from data.fetchers.baostock_fetcher import BaoStockFetcher
+    AVAILABLE_SOURCES['baostock'] = {'name': 'BaoStock', 'need_token': False, 'free': True}
+except ImportError:
+    BaoStockFetcher = None
 
+# EastMoney (东方财富)
+from data.fetchers.em_fetcher import EMFetcher
+AVAILABLE_SOURCES['em'] = {'name': '东方财富 EM', 'need_token': False, 'free': True}
+
+# JQData (JoinQuant/聚宽)
+try:
+    from data.fetchers.jqdata_fetcher import JQDataFetcher
+    if __import__('jqdatasdk', fromlist=['jqdatasdk']) is not None:
+        AVAILABLE_SOURCES['jqdata'] = {'name': 'JQData 聚宽', 'need_token': True, 'free': True}
+except (ImportError, ModuleNotFoundError):
+    JQDataFetcher = None
+
+# ============================================================
 # 数据源管理器
+# ============================================================
 class DataSourceManager:
-    """数据源管理器，支持AKShare和Tushare切换"""
-    
-    def __init__(self, tushare_token: str = None):
-        self._akshare = None
-        self._tushare = None
-        self._tushare_token = tushare_token
-        self._current_source = 'tushare'  # 默认使用Tushare（更稳定）
-        logger.info("数据源管理器初始化完成，默认使用AKShare")
-    
+    """数据源管理器，支持多种数据源动态切换"""
+
+    def __init__(self):
+        self._fetchers = {}
+        self._current_source = 'tushare'  # 默认使用Tushare（最稳定）
+        logger.info(f"数据源管理器初始化完成，可用: {list(AVAILABLE_SOURCES.keys())}")
+
     @property
     def current_source(self) -> str:
         return self._current_source
-    
+
     @property
     def fetcher(self):
         """获取当前数据源"""
-        if self._current_source == 'akshare':
-            if self._akshare is None:
-                self._akshare = AKShareFetcher()
-            return self._akshare
-        else:
-            if not TUSHARE_AVAILABLE:
-                raise ValueError("Tushare not installed")
-            if self._tushare is None:
-                if not self._tushare_token:
-                    raise ValueError("Tushare需要配置Token")
-                self._tushare = TushareFetcher(token=self._tushare_token)
-            return self._tushare
-    
+        if self._current_source not in AVAILABLE_SOURCES:
+            raise ValueError(f"数据源不可用: {self._current_source}")
+
+        cfg = AVAILABLE_SOURCES[self._current_source]
+
+        if self._current_source not in self._fetchers:
+            if self._current_source == 'akshare':
+                self._fetchers['akshare'] = AKShareFetcher()
+            elif self._current_source == 'tushare':
+                token = os.environ.get('TUSHARE_TOKEN', '')
+                if not token or 'your_tushare_token' in token:
+                    raise ValueError("Tushare需要有效的Token")
+                self._fetchers['tushare'] = TushareFetcher(token=token)
+            elif self._current_source == 'baostock':
+                if BaoStockFetcher is None:
+                    raise ValueError("BaoStock未安装")
+                self._fetchers['baostock'] = BaoStockFetcher()
+            elif self._current_source == 'em':
+                self._fetchers['em'] = EMFetcher()
+            elif self._current_source == 'jqdata':
+                if JQDataFetcher is None:
+                    raise ValueError("JQData未安装")
+                username = os.environ.get('JQDATA_USERNAME', '')
+                password = os.environ.get('JQDATA_PASSWORD', '')
+                if not username:
+                    raise ValueError("JQData需要配置JQDATA_USERNAME和JQDATA_PASSWORD")
+                self._fetchers['jqdata'] = JQDataFetcher(username=username, password=password)
+
+        return self._fetchers[self._current_source]
+
     def switch_source(self, source: str) -> str:
         """切换数据源"""
-        if source not in ['akshare', 'tushare']:
-            raise ValueError(f"不支持的数据源: {source}")
-        
+        if source not in AVAILABLE_SOURCES:
+            raise ValueError(f"不支持的数据源: {source}，可用: {list(AVAILABLE_SOURCES.keys())}")
+
+        if source == 'tushare':
+            token = os.environ.get('TUSHARE_TOKEN', '')
+            if not token or 'your_tushare_token' in token:
+                raise ValueError("Tushare Token未配置或无效")
+
+        if source == 'jqdata':
+            username = os.environ.get('JQDATA_USERNAME', '')
+            if not username:
+                raise ValueError("JQData未配置，请设置JQDATA_USERNAME和JQDATA_PASSWORD")
+
         old_source = self._current_source
         self._current_source = source
         logger.info(f"数据源切换: {old_source} -> {source}")
         return source
-    
+
     def get_status(self) -> dict:
         """获取数据源状态"""
-        return {
+        status = {
             'current': self._current_source,
-            'available': ['akshare', 'tushare'] if TUSHARE_AVAILABLE else ['akshare'],
-            'akshare_initialized': self._akshare is not None,
-            'tushare_initialized': self._tushare is not None,
-            'tushare_configured': bool(self._tushare_token)
+            'available': [],
+            'initialized': {},
+            'configured': {},
         }
+        for key, cfg in AVAILABLE_SOURCES.items():
+            status['available'].append({'key': key, 'name': cfg['name'], 'free': cfg['free']})
+            status['initialized'][key] = key in self._fetchers
+            status['configured'][key] = self._check_configured(key)
+        return status
+
+    def _check_configured(self, source: str) -> bool:
+        if source == 'tushare':
+            token = os.environ.get('TUSHARE_TOKEN', '')
+            return bool(token) and 'your_tushare_token' not in token
+        if source == 'jqdata':
+            return bool(os.environ.get('JQDATA_USERNAME', ''))
+        return True  # 免费数据源总是"已配置"
 
 
 # 创建全局数据源管理器
-tushare_token = os.environ.get('TUSHARE_TOKEN', '')
-ds_manager = DataSourceManager(tushare_token=tushare_token)
+ds_manager = DataSourceManager()
 
 from flask import Flask, jsonify, request, session, send_from_directory, send_file
 from flask_cors import CORS
@@ -167,22 +229,20 @@ def serve_frontend(filename):
 def api_datasource():
     """数据源管理接口"""
     if request.method == 'POST':
-        # 切换数据源
         params = request.get_json(silent=True) or {}
         source = params.get('source', '').lower()
 
-        if source not in ['akshare', 'tushare']:
-            return fail('无效的数据源，支持: akshare, tushare')
-
-        if source == 'tushare':
-            if not tushare_token or 'your_tushare_token' in tushare_token:
-                return fail('Tushare Token未配置或无效，请在.env中设置正确的TUSHARE_TOKEN')
+        if source not in AVAILABLE_SOURCES:
+            keys = ', '.join(AVAILABLE_SOURCES.keys())
+            return fail(f'无效数据源: {source}，支持: {keys}')
 
         try:
             new_source = ds_manager.switch_source(source)
+            cfg = AVAILABLE_SOURCES[source]
             return ok({
                 'current': new_source,
-                'message': f'已切换到 {new_source.upper()} 数据源'
+                'source_name': cfg['name'],
+                'message': f'已切换到 {cfg["name"]} 数据源'
             })
         except Exception as e:
             return fail(str(e))
