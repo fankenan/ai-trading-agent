@@ -24,7 +24,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 导入数据获取器
-from data.fetchers.tushare_fetcher import TushareFetcher
+try:
+    from data.fetchers.tushare_fetcher import TushareFetcher
+    TUSHARE_AVAILABLE = True
+except ImportError:
+    TUSHARE_AVAILABLE = False
+    TushareFetcher = None
+    logger.warning("Tushare not installed, only AKShare will be available")
+
 from data.fetchers.akshare_fetcher import AKShareFetcher
 
 # 数据源管理器
@@ -50,6 +57,8 @@ class DataSourceManager:
                 self._akshare = AKShareFetcher()
             return self._akshare
         else:
+            if not TUSHARE_AVAILABLE:
+                raise ValueError("Tushare not installed")
             if self._tushare is None:
                 if not self._tushare_token:
                     raise ValueError("Tushare需要配置Token")
@@ -70,7 +79,7 @@ class DataSourceManager:
         """获取数据源状态"""
         return {
             'current': self._current_source,
-            'available': ['akshare', 'tushare'],
+            'available': ['akshare', 'tushare'] if TUSHARE_AVAILABLE else ['akshare'],
             'akshare_initialized': self._akshare is not None,
             'tushare_initialized': self._tushare is not None,
             'tushare_configured': bool(self._tushare_token)
